@@ -59,6 +59,7 @@ public class MainActivity extends AppCompatActivity implements
         PutDataMapRequest putDataMapReq = PutDataMapRequest.create("/hello_world");
         putDataMapReq.getDataMap().putString(HELLO_WORLD_KEY, message);
         PutDataRequest putDataReq = putDataMapReq.asPutDataRequest();
+        putDataReq.setUrgent();
         PendingResult<DataApi.DataItemResult> pendingResult =
                 Wearable.DataApi.putDataItem(mGoogleApiClient, putDataReq);
     }
