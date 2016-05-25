@@ -14,6 +14,7 @@ import android.widget.TextView;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.common.api.PendingResult;
+import com.google.android.gms.common.api.Result;
 import com.google.android.gms.common.api.ResultCallback;
 import com.google.android.gms.wearable.CapabilityApi;
 import com.google.android.gms.wearable.CapabilityInfo;
@@ -106,6 +107,31 @@ public class MainActivity extends AppCompatActivity {
                     }
                 })
                 .build();
+
+        PendingResult<CapabilityApi.GetCapabilityResult> capabilityResult =
+                Wearable.CapabilityApi.getCapability(
+                        mGoogleApiClient, CLEARABLE_CAPABILITY_NAME,
+                        CapabilityApi.FILTER_REACHABLE);
+
+        capabilityResult.setResultCallback(new ResultCallback<CapabilityApi.GetCapabilityResult>() {
+            @Override
+            public void onResult(@NonNull CapabilityApi.GetCapabilityResult result) {
+                updateTranscriptionCapability(result.getCapability());
+            }
+        });
+
+        CapabilityApi.CapabilityListener capabilityListener =
+                new CapabilityApi.CapabilityListener() {
+                    @Override
+                    public void onCapabilityChanged(CapabilityInfo capabilityInfo) {
+                        updateTranscriptionCapability(capabilityInfo);
+                    }
+                };
+
+        Wearable.CapabilityApi.addCapabilityListener(
+                mGoogleApiClient,
+                capabilityListener,
+                CLEARABLE_CAPABILITY_NAME);
     }
 
     @Override
@@ -135,29 +161,6 @@ public class MainActivity extends AppCompatActivity {
     private static final String
             CLEARABLE_CAPABILITY_NAME = "clearable";
 
-
-    private void setupVoiceTranscription() {
-        CapabilityApi.GetCapabilityResult result =
-                Wearable.CapabilityApi.getCapability(
-                        mGoogleApiClient, CLEARABLE_CAPABILITY_NAME,
-                        CapabilityApi.FILTER_REACHABLE).await();
-
-        updateTranscriptionCapability(result.getCapability());
-
-        CapabilityApi.CapabilityListener capabilityListener =
-                new CapabilityApi.CapabilityListener() {
-                    @Override
-                    public void onCapabilityChanged(CapabilityInfo capabilityInfo) {
-                        updateTranscriptionCapability(capabilityInfo);
-                    }
-                };
-
-        Wearable.CapabilityApi.addCapabilityListener(
-                mGoogleApiClient,
-                capabilityListener,
-                CLEARABLE_CAPABILITY_NAME);
-    }
-
     private String clearNodeId = null;
 
     private void updateTranscriptionCapability(CapabilityInfo capabilityInfo) {
@@ -171,7 +174,7 @@ public class MainActivity extends AppCompatActivity {
         // Find a nearby node or pick one arbitrarily
         System.out.println("Nodes found:");
         for (Node node : nodes) {
-            System.out.println("node");
+            System.out.println(node.getId());
             if (node.isNearby()) {
                 return node.getId();
             }
