@@ -14,11 +14,19 @@ import android.widget.TextView;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.common.api.PendingResult;
+import com.google.android.gms.common.api.ResultCallback;
+import com.google.android.gms.wearable.CapabilityApi;
+import com.google.android.gms.wearable.CapabilityInfo;
 import com.google.android.gms.wearable.DataApi;
 import com.google.android.gms.wearable.DataEventBuffer;
+import com.google.android.gms.wearable.MessageApi;
+import com.google.android.gms.wearable.Node;
+import com.google.android.gms.wearable.NodeApi;
 import com.google.android.gms.wearable.PutDataMapRequest;
 import com.google.android.gms.wearable.PutDataRequest;
 import com.google.android.gms.wearable.Wearable;
+
+import java.util.Set;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -118,5 +126,94 @@ public class MainActivity extends AppCompatActivity {
     private void setText(String s) {
         TextView text = (TextView) findViewById(R.id.text);
         text.setText(s + "\n" + text.getText());
+    }
+
+    //
+    //  Message API
+    //
+
+    private static final String
+            CLEARABLE_CAPABILITY_NAME = "clearable";
+
+
+    private void setupVoiceTranscription() {
+        CapabilityApi.GetCapabilityResult result =
+                Wearable.CapabilityApi.getCapability(
+                        mGoogleApiClient, CLEARABLE_CAPABILITY_NAME,
+                        CapabilityApi.FILTER_REACHABLE).await();
+
+        updateTranscriptionCapability(result.getCapability());
+
+        CapabilityApi.CapabilityListener capabilityListener =
+                new CapabilityApi.CapabilityListener() {
+                    @Override
+                    public void onCapabilityChanged(CapabilityInfo capabilityInfo) {
+                        updateTranscriptionCapability(capabilityInfo);
+                    }
+                };
+
+        Wearable.CapabilityApi.addCapabilityListener(
+                mGoogleApiClient,
+                capabilityListener,
+                CLEARABLE_CAPABILITY_NAME);
+    }
+
+    private String clearNodeId = null;
+
+    private void updateTranscriptionCapability(CapabilityInfo capabilityInfo) {
+        Set<Node> connectedNodes = capabilityInfo.getNodes();
+
+        clearNodeId = pickBestNodeId(connectedNodes);
+    }
+
+    private String pickBestNodeId(Set<Node> nodes) {
+        String bestNodeId = null;
+        // Find a nearby node or pick one arbitrarily
+        System.out.println("Nodes found:");
+        for (Node node : nodes) {
+            System.out.println("node");
+            if (node.isNearby()) {
+                return node.getId();
+            }
+            bestNodeId = node.getId();
+        }
+        return bestNodeId;
+    }
+
+    public static final String CLEAR_MESSAGE_PATH = "/clear";
+
+    public void clear(View view) {
+        if (clearNodeId != null) {
+            Wearable.MessageApi.sendMessage(mGoogleApiClient, clearNodeId,
+                    CLEAR_MESSAGE_PATH, new byte[0]).setResultCallback(new ResultCallback<MessageApi.SendMessageResult>() {
+                @Override
+                public void onResult(@NonNull MessageApi.SendMessageResult sendMessageResult) {
+                    if (!sendMessageResult.getStatus().isSuccess()) {
+                        System.out.println("failed to send message");
+                    }
+                }
+            });
+        } else {
+            System.out.println("no capable node connected");
+            PendingResult<NodeApi.GetConnectedNodesResult> result = Wearable.NodeApi.getConnectedNodes(mGoogleApiClient);
+            result.setResultCallback(new ResultCallback<NodeApi.GetConnectedNodesResult>() {
+                @Override
+                public void onResult(@NonNull NodeApi.GetConnectedNodesResult result) {
+                    System.out.println("Connected nodes:");
+                    for (Node n : result.getNodes()) {
+                        System.out.println(n.getDisplayName() + ", " + n.getId());
+                        Wearable.MessageApi.sendMessage(mGoogleApiClient, n.getId(),
+                                CLEAR_MESSAGE_PATH, new byte[0]).setResultCallback(new ResultCallback<MessageApi.SendMessageResult>() {
+                            @Override
+                            public void onResult(@NonNull MessageApi.SendMessageResult sendMessageResult) {
+                                if (!sendMessageResult.getStatus().isSuccess()) {
+                                    System.out.println("failed to send message");
+                                }
+                            }
+                        });
+                    }
+                }
+            });
+        }
     }
 }

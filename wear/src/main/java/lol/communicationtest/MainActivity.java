@@ -1,5 +1,6 @@
 package lol.communicationtest;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
@@ -17,6 +18,8 @@ import com.google.android.gms.wearable.DataEventBuffer;
 import com.google.android.gms.wearable.DataItem;
 import com.google.android.gms.wearable.DataMap;
 import com.google.android.gms.wearable.DataMapItem;
+import com.google.android.gms.wearable.MessageApi;
+import com.google.android.gms.wearable.MessageEvent;
 import com.google.android.gms.wearable.Wearable;
 
 import java.text.SimpleDateFormat;
@@ -123,7 +126,19 @@ public class MainActivity extends WearableActivity {
                     }
                 })
                 .build();
+
+        Wearable.MessageApi.addListener(mGoogleApiClient, new MessageApi.MessageListener() {
+            @Override
+            public void onMessageReceived(MessageEvent messageEvent) {
+                if (messageEvent.getPath().equals(CLEAR_MESSAGE_PATH)) {
+                    TextView helloWorld = (TextView) findViewById(R.id.text);
+                    helloWorld.setText("");
+                }
+            }
+        });
     }
+
+    public static final String CLEAR_MESSAGE_PATH = "/clear";
 
     @Override
     protected void onResume() {

@@ -19,6 +19,11 @@
         android:text="Send!"
         android:onClick="sendMessage" />
 
+    <Button
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Clear!"
+        android:onClick="clear" />
 
     <TextView
         android:id="@+id/text"
