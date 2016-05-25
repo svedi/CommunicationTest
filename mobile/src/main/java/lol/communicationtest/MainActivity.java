@@ -1,9 +1,8 @@
 package lol.communicationtest;
 
-import android.app.Activity;
 import android.os.Bundle;
-import android.support.design.widget.FloatingActionButton;
-import android.support.design.widget.Snackbar;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.view.View;
@@ -16,19 +15,12 @@ import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.common.api.PendingResult;
 import com.google.android.gms.wearable.DataApi;
-import com.google.android.gms.wearable.DataEvent;
 import com.google.android.gms.wearable.DataEventBuffer;
-import com.google.android.gms.wearable.DataItem;
-import com.google.android.gms.wearable.DataMap;
-import com.google.android.gms.wearable.DataMapItem;
 import com.google.android.gms.wearable.PutDataMapRequest;
 import com.google.android.gms.wearable.PutDataRequest;
 import com.google.android.gms.wearable.Wearable;
 
-public class MainActivity extends AppCompatActivity implements
-        DataApi.DataListener,
-        GoogleApiClient.ConnectionCallbacks,
-        GoogleApiClient.OnConnectionFailedListener {
+public class MainActivity extends AppCompatActivity {
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -67,6 +59,16 @@ public class MainActivity extends AppCompatActivity implements
     private static final String HELLO_WORLD_KEY = "lol.communicationtest.hello_world";
 
     private GoogleApiClient mGoogleApiClient;
+    private final DataApi.DataListener onDataChangeListener;
+
+    {
+        onDataChangeListener = new DataApi.DataListener() {
+            @Override
+            public void onDataChanged(DataEventBuffer dataEventBuffer) {
+                setText("Data changed");
+            }
+        };
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -77,8 +79,24 @@ public class MainActivity extends AppCompatActivity implements
 
         mGoogleApiClient = new GoogleApiClient.Builder(this)
                 .addApi(Wearable.API)
-                .addConnectionCallbacks(this)
-                .addOnConnectionFailedListener(this)
+                .addConnectionCallbacks(new GoogleApiClient.ConnectionCallbacks() {
+                    @Override
+                    public void onConnected(@Nullable Bundle bundle) {
+                        Wearable.DataApi.addListener(mGoogleApiClient, onDataChangeListener);
+                        setText("Connected");
+                    }
+
+                    @Override
+                    public void onConnectionSuspended(int i) {
+                        setText("Connection suspended");
+                    }
+                })
+                .addOnConnectionFailedListener(new GoogleApiClient.OnConnectionFailedListener() {
+                    @Override
+                    public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
+                        setText("Connection suspended");
+                    }
+                })
                 .build();
     }
 
@@ -89,33 +107,12 @@ public class MainActivity extends AppCompatActivity implements
         setText("Resume");
     }
 
-    @Override
-    public void onConnected(Bundle bundle) {
-        Wearable.DataApi.addListener(mGoogleApiClient, this);
-        setText("Connected");
-    }
 
     @Override
     protected void onPause() {
         super.onPause();
-        Wearable.DataApi.removeListener(mGoogleApiClient, this);
+        Wearable.DataApi.removeListener(mGoogleApiClient, onDataChangeListener);
         mGoogleApiClient.disconnect();
-    }
-
-    @Override
-    public void onDataChanged(DataEventBuffer dataEvents) {
-        setText("Data changed");
-    }
-
-
-    @Override
-    public void onConnectionSuspended(int x) {
-        setText("Connection suspended");
-    }
-
-    @Override
-    public void onConnectionFailed(ConnectionResult r) {
-        setText("Failed");
     }
 
     private void setText(String s) {

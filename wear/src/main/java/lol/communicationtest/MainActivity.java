@@ -1,6 +1,8 @@
 package lol.communicationtest;
 
 import android.os.Bundle;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 import android.support.wearable.activity.WearableActivity;
 import android.support.wearable.view.BoxInsetLayout;
 import android.view.View;
@@ -21,10 +23,7 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
 
-public class MainActivity extends WearableActivity implements
-        DataApi.DataListener,
-        GoogleApiClient.ConnectionCallbacks,
-        GoogleApiClient.OnConnectionFailedListener {
+public class MainActivity extends WearableActivity {
 
     private static final SimpleDateFormat AMBIENT_DATE_FORMAT =
             new SimpleDateFormat("HH:mm", Locale.US);
@@ -70,6 +69,27 @@ public class MainActivity extends WearableActivity implements
     private static final String HELLO_WORLD_KEY = "lol.communicationtest.hello_world";
 
     private GoogleApiClient mGoogleApiClient;
+    private final DataApi.DataListener onDataChangeListener;
+
+    {
+        onDataChangeListener = new DataApi.DataListener() {
+            @Override
+            public void onDataChanged(DataEventBuffer dataEvents) {
+                for (DataEvent event : dataEvents) {
+                    if (event.getType() == DataEvent.TYPE_CHANGED) {
+                        // DataItem changed
+                        DataItem item = event.getDataItem();
+                        if (item.getUri().getPath().compareTo("/hello_world") == 0) {
+                            DataMap dataMap = DataMapItem.fromDataItem(item).getDataMap();
+                            setText(dataMap.getString(HELLO_WORLD_KEY));
+                        }
+                    } else if (event.getType() == DataEvent.TYPE_DELETED) {
+                        // DataItem deleted
+                    }
+                }
+            }
+        };
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -83,8 +103,25 @@ public class MainActivity extends WearableActivity implements
 
         mGoogleApiClient = new GoogleApiClient.Builder(this)
                 .addApi(Wearable.API)
-                .addConnectionCallbacks(this)
-                .addOnConnectionFailedListener(this)
+                .addConnectionCallbacks(new GoogleApiClient.ConnectionCallbacks() {
+                    @Override
+                    public void onConnected(@Nullable Bundle bundle) {
+                        Wearable.DataApi.addListener(mGoogleApiClient, onDataChangeListener);
+                        setText("Connected");
+                    }
+
+                    @Override
+                    public void onConnectionSuspended(int i) {
+                        setText("Suspended");
+                    }
+                })
+                .addOnConnectionFailedListener(new GoogleApiClient.OnConnectionFailedListener() {
+                    @Override
+                    public void onConnectionFailed(@NonNull ConnectionResult r) {
+                        setText("Failed: " + r.getErrorMessage());
+                        GoogleApiAvailability.getInstance().getErrorDialog(MainActivity.this, r.getErrorCode(), 0).show();
+                    }
+                })
                 .build();
     }
 
@@ -92,52 +129,19 @@ public class MainActivity extends WearableActivity implements
     protected void onResume() {
         super.onResume();
         mGoogleApiClient.connect();
-        TextView helloWorld = (TextView) findViewById(R.id.text);
+        //TextView helloWorld = (TextView) findViewById(R.id.text);
         //helloWorld.setText("");
-        setHelloWorld("Resumed");
-    }
-
-    @Override
-    public void onConnected(Bundle bundle) {
-        Wearable.DataApi.addListener(mGoogleApiClient, this);
-        setHelloWorld("Connected");
+        setText("Resumed");
     }
 
     @Override
     protected void onPause() {
         super.onPause();
-        Wearable.DataApi.removeListener(mGoogleApiClient, this);
+        Wearable.DataApi.removeListener(mGoogleApiClient, onDataChangeListener);
         mGoogleApiClient.disconnect();
     }
 
-    @Override
-    public void onDataChanged(DataEventBuffer dataEvents) {
-        for (DataEvent event : dataEvents) {
-            if (event.getType() == DataEvent.TYPE_CHANGED) {
-                // DataItem changed
-                DataItem item = event.getDataItem();
-                if (item.getUri().getPath().compareTo("/hello_world") == 0) {
-                    DataMap dataMap = DataMapItem.fromDataItem(item).getDataMap();
-                    setHelloWorld(dataMap.getString(HELLO_WORLD_KEY));
-                }
-            } else if (event.getType() == DataEvent.TYPE_DELETED) {
-                // DataItem deleted
-            }
-        }
-    }
-
-    @Override
-    public void onConnectionSuspended(int x) {
-        setHelloWorld("Suspended");
-    }
-
-    @Override
-    public void onConnectionFailed(ConnectionResult r) {
-        setHelloWorld("Failed: " + r.getErrorMessage());
-        GoogleApiAvailability.getInstance().getErrorDialog(this, r.getErrorCode(), 0).show();
-    }
-
-    private void setHelloWorld(String s) {
+    private void setText(String s) {
         TextView helloWorld = (TextView) findViewById(R.id.text);
         helloWorld.setText(s + "\n" + helloWorld.getText());
     }
