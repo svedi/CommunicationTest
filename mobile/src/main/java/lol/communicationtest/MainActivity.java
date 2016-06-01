@@ -108,6 +108,10 @@ public class MainActivity extends AppCompatActivity {
                 })
                 .build();
 
+
+
+        mGoogleApiClient.connect();
+
         PendingResult<CapabilityApi.GetCapabilityResult> capabilityResult =
                 Wearable.CapabilityApi.getCapability(
                         mGoogleApiClient, CLEARABLE_CAPABILITY_NAME,
@@ -137,7 +141,6 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        mGoogleApiClient.connect();
         setText("Resume");
     }
 
@@ -145,6 +148,12 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onPause() {
         super.onPause();
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+
         Wearable.DataApi.removeListener(mGoogleApiClient, onDataChangeListener);
         mGoogleApiClient.disconnect();
     }
